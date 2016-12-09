@@ -12,14 +12,15 @@ import java.util.List;
 
 public class MyService extends AccessibilityService {
 
-    private boolean isAuto = true;
+    private boolean isAuto = false;
     private int maxPacket = 0;
+    private boolean listSize=false;
 
     public MyService() {
     }
 
 
-    @TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR2)
+    @TargetApi(Build.VERSION_CODES.KITKAT)
     @Override
     public void onAccessibilityEvent(AccessibilityEvent accessibilityEvent) {
 
@@ -41,7 +42,7 @@ public class MyService extends AccessibilityService {
                         }
                         Notification notification = (Notification) accessibilityEvent.getParcelableData();
                         PendingIntent pendingIntent = notification.contentIntent;
-                        isAuto=true;
+                        isAuto = true;
                         try {
                             pendingIntent.send();
                         } catch (PendingIntent.CanceledException e) {
@@ -60,8 +61,6 @@ public class MyService extends AccessibilityService {
                         return;
                     }
                     List<AccessibilityNodeInfo> list = getRootInActiveWindow().findAccessibilityNodeInfosByText(getString(R.string.get_rad_packet));
-                    System.out.println("---------list01-1--"+list.get(list.size()-1));
-                    System.out.println("---------list01-2--"+list.get(list.size()-2));
                     maxPacket = list.size();
                     if (list.size() > 0) {
                         openRedPacked(list.get(list.size() - 1));
@@ -76,25 +75,29 @@ public class MyService extends AccessibilityService {
             }
         } else if (evenTyp == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
             CharSequence className = accessibilityEvent.getClassName();
-                if ("android.widget.TextView".equals(className.toString()) && !isAuto) {
-                    if (getRootInActiveWindow() == null) {
-                        return;
-                    }
-                    List<AccessibilityNodeInfo> list = getRootInActiveWindow().findAccessibilityNodeInfosByText(getString(R.string.get_rad_packet));
-                    //System.out.println("-----maxPacket-----"+maxPacket+"----list-----"+list.size());
-                   /* if (list.size()>0 && maxPacket <list.size()) {
-                        maxPacket = list.size();
-                        isAuto = true;
-                    }
 
-                    if (isAuto) {
-                        if (list.size() > 0) {
-                            openRedPacked(list.get(list.size() - 1));
-                            isAuto = false;
-                        }
-                    }*/
+            if ("android.widget.TextView".equals(className.toString()) && !isAuto) {
 
+                if (getRootInActiveWindow() == null) {
+                    return;
                 }
+                List<AccessibilityNodeInfo> list = getRootInActiveWindow().findAccessibilityNodeInfosByText(getString(R.string.get_rad_packet));
+                System.out.println("-----maxPacket-----" + maxPacket + "----list-----" + list.size());
+                if (list.size() > 0 && maxPacket < list.size()) {
+                    maxPacket = list.size();
+                    openRedPacked(list.get(list.size() - 1));
+                }
+                if (listSize){
+                    maxPacket=0;
+                }
+                if (list.size()==1){
+                    maxPacket=0;
+                    listSize=true;
+                }else if (list.size()!=0){
+                    listSize=false;
+                }
+
+            }
 
         }
 
