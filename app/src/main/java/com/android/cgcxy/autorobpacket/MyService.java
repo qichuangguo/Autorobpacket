@@ -4,28 +4,43 @@ import android.accessibilityservice.AccessibilityService;
 import android.annotation.TargetApi;
 import android.app.Notification;
 import android.app.PendingIntent;
+import android.nfc.Tag;
 import android.os.Build;
+import android.util.Log;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 
+import java.sql.SQLOutput;
+import java.util.IllegalFormatCodePointException;
 import java.util.List;
 
-public class MyService extends AccessibilityService {
+public class MyService extends BaseAccessibilityService {
 
     private boolean isAuto = false;
     private int maxPacket = 0;
-    private boolean listSize=false;
-
+    private boolean isList=false;
+    private long startTime = System.currentTimeMillis();
+    private int maxListSize=0;
+    private int currentListSize=0;
+    private String TagS="autorobpacket";
+    private boolean isLog=true;
     public MyService() {
+
     }
 
+    public void Logi(String s){
+
+        if (isLog) {
+            Log.i(TagS, s);
+        }
+
+    }
 
     @TargetApi(Build.VERSION_CODES.KITKAT)
     @Override
     public void onAccessibilityEvent(AccessibilityEvent accessibilityEvent) {
 
         int evenTyp = accessibilityEvent.getEventType();
-
         if (evenTyp == AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED) {
 
             List<CharSequence> text = accessibilityEvent.getText();
@@ -55,14 +70,19 @@ public class MyService extends AccessibilityService {
         } else if (evenTyp == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
 
             CharSequence className = accessibilityEvent.getClassName();
+
             if ("com.tencent.mm.ui.LauncherUI".equals(className)) {
+                isList = true;
+                if (getRootInActiveWindow() == null) {
+                    return;
+                }
+                List<AccessibilityNodeInfo> list = getRootInActiveWindow().findAccessibilityNodeInfosByText(getString(R.string.get_rad_packet));
+                maxPacket = list.size();
+                currentListSize=maxPacket;
+                Logi("-----001----"+list.size());
                 if (isAuto) {
-                    if (getRootInActiveWindow() == null) {
-                        return;
-                    }
-                    List<AccessibilityNodeInfo> list = getRootInActiveWindow().findAccessibilityNodeInfosByText(getString(R.string.get_rad_packet));
-                    maxPacket = list.size();
                     if (list.size() > 0) {
+                        Logi("-------通知-----");
                         openRedPacked(list.get(list.size() - 1));
                     }
                 }
@@ -70,31 +90,48 @@ public class MyService extends AccessibilityService {
                 isAuto = false;
             } else if ("com.tencent.mm.plugin.luckymoney.ui.LuckyMoneyReceiveUI".equals(className)) {
                 excreteRedPacked();
+                isList = false;
             } else if ("com.tencent.mm.plugin.luckymoney.ui.LuckyMoneyDetailUI".equals(className)) {
-
+                isList = false;
             }
         } else if (evenTyp == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
             CharSequence className = accessibilityEvent.getClassName();
-
             if ("android.widget.TextView".equals(className.toString()) && !isAuto) {
 
-                if (getRootInActiveWindow() == null) {
-                    return;
-                }
-                List<AccessibilityNodeInfo> list = getRootInActiveWindow().findAccessibilityNodeInfosByText(getString(R.string.get_rad_packet));
-                System.out.println("-----maxPacket-----" + maxPacket + "----list-----" + list.size());
-                if (list.size() > 0 && maxPacket < list.size()) {
-                    maxPacket = list.size();
-                    openRedPacked(list.get(list.size() - 1));
-                }
-                if (listSize){
-                    maxPacket=0;
-                }
-                if (list.size()==1){
-                    maxPacket=0;
-                    listSize=true;
-                }else if (list.size()!=0){
-                    listSize=false;
+                if (accessibilityEvent.getContentDescription()==null && isList) {
+                    if (getRootInActiveWindow() == null) {
+                        return;
+                    }
+
+                    List<AccessibilityNodeInfo> list = getRootInActiveWindow().findAccessibilityNodeInfosByText(getString(R.string.get_rad_packet));
+                    Logi("-----maxPacket-----" + maxPacket + "----list-----" + list.size());
+                    if (System.currentTimeMillis() - startTime < 800) {
+                        Logi("-------System.currentTimeMillis()-startTime-----");
+                        startTime = System.currentTimeMillis();
+                        maxListSize = 0;
+                    } else {
+
+                        startTime = System.currentTimeMillis();
+                        Logi("-------currentListSize------" + currentListSize + "------maxPacket----" + maxPacket);
+
+                        maxListSize = Math.max(maxListSize, list.size());
+                        currentListSize = maxListSize;
+                        Logi("-------currentListSize------" + currentListSize);
+
+                        if (list.size() > 0 && maxPacket < list.size()) {
+                            maxPacket = list.size();
+                            Logi("-------列表-----");
+                            openRedPacked(list.get(list.size() - 1));
+                        }
+
+                        if (currentListSize - maxPacket < 0) {
+                            Logi("-------currentListSize-maxPacket-----");
+                            maxPacket = currentListSize;
+                        }
+
+
+                    }
+
                 }
 
             }
@@ -135,5 +172,6 @@ public class MyService extends AccessibilityService {
     public void onInterrupt() {
 
     }
+
 
 }
